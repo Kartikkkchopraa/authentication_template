@@ -1,9 +1,33 @@
-const App = () => {
-  return (
-    <div>
-      <h1>Hello, World!</h1>
-    </div>
-  )
-}
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-export default App
+import Register from "./pages/register";
+import VerifyEmail from "./pages/VerifyEmail";
+
+const App = () => {
+    return (
+        <BrowserRouter>
+            <Routes>
+
+                {/* Default route */}
+                <Route
+                    path="/"
+                    element={<Navigate to="/register" replace />}
+                />
+
+                {/* Authentication routes */}
+                <Route
+                    path="/register"
+                    element={<Register />}
+                />
+
+                <Route
+                    path="/verify-email"
+                    element={<VerifyEmail />}
+                />
+
+            </Routes>
+        </BrowserRouter>
+    );
+};
+
+export default App;

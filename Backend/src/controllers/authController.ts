@@ -112,7 +112,7 @@ export async function verifyEmail(req: Request, res: Response): Promise<void>{
 
     if (result.rows.length === 0) {
         res.status(400).json({
-            message: "OTP_EXPIRED_OR_NOT_FOUND"
+            message: "OTP_EXPIRED"
         });
 
         return;
