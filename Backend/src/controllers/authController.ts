@@ -1,0 +1,205 @@
+import { Request, Response } from "express";
+import { pool } from "../config/database.js";
+import argon2  from "argon2";
+import { generateOtp, getOtpHtml } from "../utils/mailUtils.js";
+import { sendEmail } from "../service/emailService.js";
+
+interface RegisterBody{
+    username: string;
+    email: string;
+    password: string;
+}
+
+export async function register(req : Request,res : Response) : Promise<void> {
+
+    const user: RegisterBody = req.body;
+
+    const resultEmail = await pool.query("Select id from users where email = $1 " ,[user.email]);
+
+    
+
+    if(resultEmail.rows.length > 0){
+
+        console.log(resultEmail.rows);
+
+        res.status(409).json({
+            message: "EMAIL_ALREADY_EXIST"
+        })
+
+        return;
+    };
+
+
+    const resultUsername = await pool.query("Select id from users where username = $1",[user.username]);
+
+    
+
+    if(resultUsername.rows.length > 0){
+        console.log(resultUsername.rows);
+
+        res.status(409).json({
+            message: "USERNAME_ALREADY_EXIST"
+        })
+
+        return;
+    }
+
+    const hashedPassword = await argon2.hash(user.password);
+
+   const result =  await pool.query("Insert into users (username,email,password_hash) values ($1,$2,$3) returning id, username, email, email_verified", [user.username,user.email,hashedPassword]);
+
+
+   const newUser = result.rows[0];
+
+   const otp = generateOtp();
+   const html = getOtpHtml(otp);
+
+   const otpHash = await argon2.hash(otp);
+
+   
+   
+   await pool.query("insert into Otp (user_id, otp_hash, expires_at) values ($1, $2, NOW() + INTERVAL '5 minutes')", [newUser.id,otpHash]);
+
+    await sendEmail(newUser.email, "Verify your email", `Your OTP is ${otp}`, html);
+
+
+   res.status(201).json({
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        email_verified: newUser.email_verified
+   })
+   
+}
+
+export async function verifyEmail(req: Request, res: Response): Promise<void>{
+
+    const {otp, email} = req.body;
+
+    
+    const registeredUser = await pool.query("select id, email_verified from users where email = $1", [email]);
+
+    if(registeredUser.rows.length === 0){
+        res.status(404).json({
+            message: "EMAIL_DOESNOT_EXISTS"
+        });
+
+        return;
+    }
+
+
+    if (registeredUser.rows[0].email_verified) {
+        res.status(409).json({
+            message: "EMAIL_ALREADY_VERIFIED"
+        });
+
+        return;
+    }
+
+    const userId = registeredUser.rows[0].id;
+
+
+    const result = await pool.query(
+        `SELECT *
+        FROM otp
+        WHERE user_id = $1
+        AND used = false
+        AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1`,
+        [userId]
+    );
+
+    if (result.rows.length === 0) {
+        res.status(400).json({
+            message: "OTP_EXPIRED_OR_NOT_FOUND"
+        });
+
+        return;
+    }
+
+    const otpRecord = result.rows[0];
+
+    const isValid = await argon2.verify(otpRecord.otp_hash,otp);
+    
+    if(!isValid){
+        res.status(400).json({
+            message: "INVALID_OTP"
+        })
+
+        return;
+    };
+
+    await pool.query("delete from Otp where id = $1", [otpRecord.id]);
+
+    await pool.query("update users set email_verified = true where id = $1" ,[otpRecord.user_id]);
+
+
+    res.status(200).json({
+        message: "EMAIL_VERIFIED"
+    })
+}
+
+export async function resendOtp(req: Request, res: Response): Promise<void> {
+
+    const { email } = req.body;
+
+    if (typeof email !== "string") {
+        res.status(400).json({
+            message: "INVALID_EMAIL"
+        });
+
+        return;
+    }
+
+    const result = await pool.query(
+        "SELECT id, email_verified FROM users WHERE email = $1",
+        [email]
+    );
+
+    if (result.rows.length === 0) {
+        res.status(404).json({
+            message: "EMAIL_DOES_NOT_EXIST"
+        });
+
+        return;
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+        res.status(409).json({
+            message: "EMAIL_ALREADY_VERIFIED"
+        });
+
+        return;
+    }
+
+    const otp = generateOtp();
+    const otpHash = await argon2.hash(otp);
+    const html = getOtpHtml(otp);
+
+    await pool.query(
+        "DELETE FROM otp WHERE user_id = $1",
+        [user.id]
+    );
+
+    await pool.query(
+        `INSERT INTO otp
+            (user_id, otp_hash, expires_at)
+         VALUES
+            ($1, $2, NOW() + INTERVAL '5 minutes')`,
+        [user.id, otpHash]
+    );
+
+    await sendEmail(
+        email,
+        "Verify your email",
+        `Your OTP is ${otp}`,
+        html
+    );
+
+    res.status(200).json({
+        message: "OTP_SENT"
+    });
+}
