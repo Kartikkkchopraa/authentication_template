@@ -3,6 +3,9 @@ import { pool } from "../config/database.js";
 import argon2  from "argon2";
 import { generateOtp, getOtpHtml } from "../utils/mailUtils.js";
 import { sendEmail } from "../service/emailService.js";
+import jwt from "jsonwebtoken";
+import config from "../config/config.js";
+import {randomUUID} from "crypto";
 
 interface RegisterBody{
     username: string;
@@ -208,4 +211,102 @@ export async function resendOtp(req: Request, res: Response): Promise<void> {
         message: "OTP_SENT",
         expiryTime: expiryTime
     });
+}
+
+export async function login(req: Request, res: Response) : Promise<void>{
+
+    const {email, password} = req.body;
+
+    
+    const result = await pool.query("Select * from users where email = $1" , [email]);
+
+    if(result.rows.length === 0){
+        res.status(404).json({
+            message: "USER_NOT_REGISTERED"
+        })
+
+        return;
+    }
+
+    const isVerified = result.rows[0].email_verified;
+
+    if(!isVerified){
+        res.status(401).json({
+            message: "EMAIL_NOT_VERIFIED"
+        })
+        return;
+    }
+
+    const hashedPassword = result.rows[0].password_hash;
+
+    const isValid = await argon2.verify(hashedPassword, password);
+
+    if(!isValid){
+        res.status(401).json({
+            message: "WRONG_PASSWORD"
+        })
+        return;
+    }
+
+    const userId = result.rows[0].id;
+    
+    
+
+    const sessionId = randomUUID();
+
+    const refreshToken = jwt.sign(
+        {
+            userId,
+            sessionId
+        },
+        config.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+    const refreshTokenHash = await argon2.hash(refreshToken);
+
+    await pool.query(
+        `INSERT INTO sessions
+            (id, user_id, refresh_token_hash, expires_at, ip_address, user_agent)
+        VALUES
+            ($1, $2, $3, NOW() + INTERVAL '7 days', $4, $5)`,
+        [
+            sessionId,
+            userId,
+            refreshTokenHash,
+            req.ip,
+            req.get("user-agent")
+        ]
+    );
+
+    const accessToken = jwt.sign(
+        {
+            userId,
+        },
+        config.JWT_SECRET,
+        {
+            expiresIn : "15m"
+        }
+    )
+
+
+    res.cookie("refreshToken",refreshToken,{
+        httpOnly: true,
+        secure: false, //becuase we are right now on localHost. True is used for https
+        sameSite: "strict",
+        maxAge: 7*24*60*60*1000
+    })
+    
+    res.status(200).json({
+        message: "LOGIN_SUCCESSFUL",
+        user:{
+            username: result.rows[0].username,
+            email: email
+        },
+        accessToken
+    })
+    
+
 }

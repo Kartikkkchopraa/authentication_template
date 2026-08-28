@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Register from "./pages/register";
+import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
 
 const App = () => {
@@ -8,13 +8,13 @@ const App = () => {
         <BrowserRouter>
             <Routes>
 
-                {/* Default route */}
+               
                 <Route
                     path="/"
                     element={<Navigate to="/register" replace />}
                 />
 
-                {/* Authentication routes */}
+                
                 <Route
                     path="/register"
                     element={<Register />}

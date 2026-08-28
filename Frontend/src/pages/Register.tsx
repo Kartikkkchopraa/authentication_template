@@ -97,13 +97,11 @@ const Register = () => {
 
             <div className="flex min-h-[calc(100vh-24px)] overflow-hidden rounded-3xl border border-black/10 bg-white shadow-sm">
 
-                {/* =========================================
-                    LEFT SIDE - REGISTER FORM
-                ========================================== */}
+               
 
                 <div className="flex w-full flex-col lg:w-[48%]">
 
-                    {/* Logo */}
+              
 
                     <div className="px-8 py-7 md:px-12">
 
@@ -126,13 +124,13 @@ const Register = () => {
                     </div>
 
 
-                    {/* Form container */}
+                
 
                     <div className="flex flex-1 items-center justify-center px-8 pb-12 md:px-12">
 
                         <div className="w-full max-w-md">
 
-                            {/* Heading */}
+                         
 
                             <div className="mb-8">
 
@@ -152,14 +150,14 @@ const Register = () => {
                             </div>
 
 
-                            {/* Form */}
+                           
 
                             <form
                                 onSubmit={handleSubmit(onSubmit)}
                                 className="space-y-5"
                             >
 
-                                {/* Username */}
+                             
 
                                 <div>
 
@@ -223,7 +221,7 @@ const Register = () => {
                                 </div>
 
 
-                                {/* Email */}
+                               
 
                                 <div>
 
@@ -613,7 +611,7 @@ const Register = () => {
                         </div>
 
 
-                        {/* Bottom features */}
+                    
 
                         <div className="mt-16 grid grid-cols-3 gap-5 border-t border-black/10 pt-7">
 

@@ -161,9 +161,7 @@ const VerifyEmail = () => {
                 }
             );
 
-            /*
-             * Clear the old OTP from the input.
-             */
+            
             reset({
                 otp: ""
             });
