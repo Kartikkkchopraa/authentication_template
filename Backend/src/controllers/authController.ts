@@ -58,7 +58,9 @@ export async function register(req : Request,res : Response) : Promise<void> {
 
    
    
-   await pool.query("insert into Otp (user_id, otp_hash, expires_at) values ($1, $2, NOW() + INTERVAL '5 minutes')", [newUser.id,otpHash]);
+   const response = await pool.query("insert into Otp (user_id, otp_hash, expires_at) values ($1, $2, NOW() + INTERVAL '2 minutes') returning expires_at ", [newUser.id,otpHash]);
+
+   const expiryTime = response.rows[0].expires_at;
 
     await sendEmail(newUser.email, "Verify your email", `Your OTP is ${otp}`, html);
 
@@ -67,7 +69,8 @@ export async function register(req : Request,res : Response) : Promise<void> {
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
-        email_verified: newUser.email_verified
+        email_verified: newUser.email_verified,
+        expiryTime: expiryTime
    })
    
 }
@@ -184,13 +187,15 @@ export async function resendOtp(req: Request, res: Response): Promise<void> {
         [user.id]
     );
 
-    await pool.query(
+    const response = await pool.query(
         `INSERT INTO otp
             (user_id, otp_hash, expires_at)
          VALUES
-            ($1, $2, NOW() + INTERVAL '5 minutes')`,
+            ($1, $2, NOW() + INTERVAL '2 minutes') returning expires_at`,
         [user.id, otpHash]
     );
+
+    const expiryTime = response.rows[0].expires_at;
 
     await sendEmail(
         email,
@@ -200,6 +205,7 @@ export async function resendOtp(req: Request, res: Response): Promise<void> {
     );
 
     res.status(200).json({
-        message: "OTP_SENT"
+        message: "OTP_SENT",
+        expiryTime: expiryTime
     });
 }

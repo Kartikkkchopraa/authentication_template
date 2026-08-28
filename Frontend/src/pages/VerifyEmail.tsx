@@ -3,11 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 
+
 interface OTP {
     otp: string;
 }
 
-const RESEND_COOLDOWN = 60;
+
 
 const VerifyEmail = () => {
 
@@ -15,11 +16,16 @@ const VerifyEmail = () => {
     const navigate = useNavigate();
 
     const email = location.state?.email as string | undefined;
+    const [expiryTime, setExpirytime] = useState(localStorage.getItem("expiryTime"));
 
-    const [timer, setTimer] = useState(RESEND_COOLDOWN);
+    
+    const [timer, setTimer] = useState(0);
     const [resendLoading, setResendLoading] = useState(false);
     const [resendMessage, setResendMessage] = useState("");
     const [resendError, setResendError] = useState("");
+
+
+    
 
     const {
         register,
@@ -39,10 +45,6 @@ const VerifyEmail = () => {
     });
 
 
-    /*
-     * If user directly visits /verify-email
-     * there will be no email in router state.
-     */
     useEffect(() => {
 
         if (!email) {
@@ -52,37 +54,30 @@ const VerifyEmail = () => {
     }, [email, navigate]);
 
 
-    /*
-     * Countdown
-     */
-    useEffect(() => {
+    useEffect(()=>{
+        if(!expiryTime) return;
 
-        if (timer <= 0) {
-            return;
+        const updateTimer = () => {
+            
+            const expiry = new Date(expiryTime).getTime();
+
+            const now = Date.now();
+
+            const remainingTime = Math.max(0,Math.ceil((expiry-now)/1000));
+
+            setTimer(remainingTime);
         }
 
-        const interval = setInterval(() => {
 
-            setTimer((previousTimer) => {
+        updateTimer();
 
-                if (previousTimer <= 1) {
-                    clearInterval(interval);
-                    return 0;
-                }
-
-                return previousTimer - 1;
-            });
-
-        }, 1000);
+        const interval = setInterval(updateTimer,1000);
 
         return () => clearInterval(interval);
+    },[expiryTime]);
 
-    }, [timer]);
 
-
-    /*
-     * Verify OTP
-     */
+    
     const onSubmit = async (data: OTP): Promise<void> => {
 
         try {
@@ -95,11 +90,7 @@ const VerifyEmail = () => {
                 }
             );
 
-            /*
-             * Email successfully verified.
-             *
-             * Change this route later to your login/dashboard route.
-             */
+            
             navigate("/login", {
                 replace: true
             });
@@ -117,7 +108,7 @@ const VerifyEmail = () => {
                         message: "This email has already been verified."
                     });
 
-                } else if (message === "OTP_EXPIRED_OR_NOT_FOUND") {
+                } else if (message === "OTP_EXPIRED") {
 
                     setError("otp", {
                         type: "server",
@@ -150,9 +141,7 @@ const VerifyEmail = () => {
     };
 
 
-    /*
-     * Resend OTP
-     */
+    
     const resendOtp = async (): Promise<void> => {
 
         if (timer > 0 || resendLoading || !email) {
@@ -165,7 +154,7 @@ const VerifyEmail = () => {
 
         try {
 
-            await axios.post(
+            const response = await axios.post(
                 "http://localhost:3000/api/auth/resend-otp",
                 {
                     email
@@ -178,11 +167,11 @@ const VerifyEmail = () => {
             reset({
                 otp: ""
             });
-
-            /*
-             * Start a fresh 60 second cooldown.
-             */
-            setTimer(RESEND_COOLDOWN);
+            
+            const newExpiryTime = response.data.expiryTime;
+            
+            localStorage.setItem("expiryTime", newExpiryTime);
+            setExpirytime(newExpiryTime)
 
             setResendMessage(
                 "A new verification code has been sent to your email."
@@ -239,29 +228,29 @@ const VerifyEmail = () => {
             <div className="flex min-h-[calc(100vh-24px)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
 
-                {/* ================= LEFT SIDE ================= */}
+                
 
                 <div className="flex w-full flex-col lg:w-[45%]">
 
-                    {/* Logo */}
+                    
 
                     <div className="px-8 pt-8 sm:px-12 sm:pt-10">
 
                         <div className="text-3xl font-bold tracking-tight text-[#252525]">
-                            HYF<span className="text-[#f27c0b]">I</span>N
+                            Auth<span className="text-[#f27c0b]">F</span>low
                         </div>
 
                     </div>
 
 
-                    {/* Form */}
+                   
 
                     <div className="flex flex-1 items-center justify-center px-8 py-12 sm:px-12">
 
                         <div className="w-full max-w-md">
 
 
-                            {/* Heading */}
+                            
 
                             <div className="mb-8">
 
@@ -297,7 +286,7 @@ const VerifyEmail = () => {
                             </div>
 
 
-                            {/* Email */}
+                           
 
                             <div className="mb-7 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
 
@@ -312,7 +301,7 @@ const VerifyEmail = () => {
                             </div>
 
 
-                            {/* OTP Form */}
+                            
 
                             <form
                                 onSubmit={handleSubmit(onSubmit)}
@@ -394,7 +383,7 @@ const VerifyEmail = () => {
                                 )}
 
 
-                                {/* Verify button */}
+                                
 
                                 <button
                                     type="submit"
@@ -429,7 +418,7 @@ const VerifyEmail = () => {
                             </form>
 
 
-                            {/* Resend */}
+                        
 
                             <div className="mt-7 text-center">
 
@@ -517,7 +506,7 @@ const VerifyEmail = () => {
                 </div>
 
 
-                {/* ================= RIGHT SIDE ================= */}
+                
 
                 <div className="relative hidden overflow-hidden bg-[#f7f7f7] lg:flex lg:w-[55%]">
 
@@ -544,14 +533,13 @@ const VerifyEmail = () => {
 
                                 Verify your email address to keep your
                                 account secure and start using your
-                                HYFIN account.
+                                AuthFlow account.
 
                             </p>
 
                         </div>
 
 
-                        {/* Decorative verification card */}
 
                         <div className="relative mt-16">
 

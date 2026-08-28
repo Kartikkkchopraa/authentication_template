@@ -42,11 +42,17 @@ const Register = () => {
                 data
             );
 
-            console.log(result.data);
+            console.log(result.data.expiryTime);
+
+            localStorage.setItem("expiryTime", result.data.expiryTime);
+
+           
+
+            console.log("Stored expiry:", localStorage.getItem("expiryTime"));
 
             navigate("/verify-email", {
                 state: {
-                    email: data.email
+                    email: data.email,
                 }
             });
 
@@ -281,7 +287,7 @@ const Register = () => {
                                 </div>
 
 
-                                {/* Password */}
+                              
 
                                 <div>
 
@@ -370,7 +376,7 @@ const Register = () => {
                                 </div>
 
 
-                                {/* Submit */}
+                               
 
                                 <button
                                     type="submit"
@@ -399,7 +405,7 @@ const Register = () => {
                             </form>
 
 
-                            {/* Login */}
+                            
 
                             <div className="mt-7 text-center">
 
@@ -419,7 +425,7 @@ const Register = () => {
                             </div>
 
 
-                            {/* Terms */}
+                       
 
                             <p className="mt-8 text-center text-xs leading-5 text-gray-400">
 
@@ -446,20 +452,18 @@ const Register = () => {
                 </div>
 
 
-                {/* =========================================
-                    RIGHT SIDE - PRODUCT / MARKETING
-                ========================================== */}
+                
 
                 <div className="relative hidden flex-1 overflow-hidden bg-[#f1f1ee] lg:block">
 
-                    {/* Decorative circles */}
+                   
 
                     <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full border border-black/5" />
 
                     <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full border border-black/5" />
 
 
-                    {/* Content */}
+                  
 
                     <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
 
@@ -489,11 +493,11 @@ const Register = () => {
                         </div>
 
 
-                        {/* Product visual */}
+                    
 
                         <div className="relative mt-12 flex justify-center">
 
-                            {/* Main dashboard card */}
+                       
 
                             <div className="
                                 w-full max-w-xl
@@ -566,7 +570,7 @@ const Register = () => {
                             </div>
 
 
-                            {/* Floating verification card */}
+                           
 
                             <div className="
                                 absolute
