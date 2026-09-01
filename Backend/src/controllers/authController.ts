@@ -346,8 +346,8 @@ export async function refresh(
             `SELECT *
              FROM Sessions
              WHERE id = $1
-             AND expiry_at > NOW()
-             AND revoke = false`,
+             AND expires_at > NOW()
+             AND revoked = false`,
             [sessionId]
         );
 
@@ -355,7 +355,7 @@ export async function refresh(
 
             await pool.query(
                 `UPDATE Sessions
-                 SET revoke = true
+                 SET revoked = true
                  WHERE id = $1`,
                 [sessionId]
             );
