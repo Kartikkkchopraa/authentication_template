@@ -90,6 +90,7 @@ const VerifyEmail = () => {
                 }
             );
 
+            localStorage.removeItem("expiryTime");
             
             navigate("/login", {
                 replace: true

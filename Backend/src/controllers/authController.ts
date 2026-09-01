@@ -6,6 +6,7 @@ import { sendEmail } from "../service/emailService.js";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import {randomUUID} from "crypto";
+import { ref } from "process";
 
 interface RegisterBody{
     username: string;
@@ -215,8 +216,8 @@ export async function resendOtp(req: Request, res: Response): Promise<void> {
 
 export async function login(req: Request, res: Response) : Promise<void>{
 
-    const {email, password} = req.body;
 
+    const {email, password} = req.body;
     
     const result = await pool.query("Select * from users where email = $1" , [email]);
 
@@ -232,7 +233,8 @@ export async function login(req: Request, res: Response) : Promise<void>{
 
     if(!isVerified){
         res.status(401).json({
-            message: "EMAIL_NOT_VERIFIED"
+            message: "EMAIL_NOT_VERIFIED",
+            email
         })
         return;
     }
@@ -309,4 +311,97 @@ export async function login(req: Request, res: Response) : Promise<void>{
     })
     
 
+}
+
+
+interface RefreshTokenPayload {
+    userId: string;
+    sessionId: string;
+}
+
+export async function refresh(
+    req: Request,
+    res: Response
+): Promise<void> {
+
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+        res.status(404).json({
+            message: "TOKEN_NOT_FOUND"
+        });
+        return;
+    }
+
+    try {
+
+        const payload = jwt.verify(
+            refreshToken,
+            config.JWT_SECRET
+        ) as RefreshTokenPayload;
+
+        const { userId, sessionId } = payload;
+
+        const result = await pool.query(
+            `SELECT *
+             FROM Sessions
+             WHERE id = $1
+             AND expiry_at > NOW()
+             AND revoke = false`,
+            [sessionId]
+        );
+
+        if (result.rows.length === 0) {
+
+            await pool.query(
+                `UPDATE Sessions
+                 SET revoke = true
+                 WHERE id = $1`,
+                [sessionId]
+            );
+
+            res.status(401).json({
+                message: "SESSION_EXPIRED"
+            });
+
+            return;
+        }
+
+        const accessToken = jwt.sign(
+            {
+                userId
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "15m"
+            }
+        );
+
+        res.status(200).json({
+            message: "NEW_TOKEN_ASSIGNED",
+            accessToken
+        });
+
+    } catch (error) {
+
+        if (error instanceof jwt.TokenExpiredError) {
+            res.status(401).json({
+                message: "REFRESH_TOKEN_EXPIRED"
+            });
+            return;
+        }
+
+        if (error instanceof jwt.JsonWebTokenError) {
+            res.status(401).json({
+                message: "INVALID_REFRESH_TOKEN"
+            });
+            return;
+        }
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "INTERNAL_SERVER_ERROR"
+        });
+    }
 }
